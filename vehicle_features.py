@@ -46,4 +46,58 @@ def computeColorHistogram(img, n_bins=40):
     # Concatenate the histograms into a single feature vector
     hist_features = np.concatenate((channel1_hist[0], channel2_hist[0], channel3_hist[0]))
     # Return the individual histograms, bin_centers and feature vector
-    return hist_features               
+    return hist_features
+
+def extractImgFeatures(img, color_space_in, hog_orient, hog_pix_per_cell, 
+                       hog_cells_per_block, spatial_size, hist_bins, 
+                       vis, hog_channel):
+    # Extract the features from the image
+    img_features = []
+    imgC = convertColorSpace(img, color_space_in)
+
+    # First the HOG
+    if hog_channel == 'ALL':
+        hog_features = []
+        for channel in range(imgC.shape[2]):
+            hog = extractHog(imgC[:,:,channel], hog_orient, hog_pix_per_cell, 
+                             hog_cells_per_block, vis=False, feature_vec=True)
+            hog_features.append(hog)
+        hog_features = np.ravel(hog_features)
+    else:
+        if vis == True:
+            hog_features, hog_image = extractHog(imgC[:,:,hog_channel], hog_orient, 
+                                                 hog_pix_per_cell, hog_cells_per_block,
+                                                 vis=True, feature_vec=True)
+        else:
+            hog_features = extractHog(imgC[:,:,hog_channel], hog_orient, 
+                                                 hog_pix_per_cell, hog_cells_per_block,
+                                                 vis=False, feature_vec=True)
+    img_features.append(hog_features)
+
+    # Second the color binning
+    spatial_features = binColorsSpatially(imgC, spatial_size)
+    img_features.append(spatial_features)
+
+    # Third the color histogram
+    hist_features = computeColorHistogram(imgC, hist_bins)
+    img_features.append(hist_features)
+
+    # Concatenate features and return
+    if vis == True:
+        return np.concatenate(img_features), hog_image
+    else:
+        return np.concatenate(img_features)
+    
+def extractFeatures(imgs, color_space_in, hog_orient, hog_pix_per_cell, 
+                    hog_cells_per_block, spatial_size, hist_bins):
+    # Extract features from a list of images
+    features = []
+    for img in imgs:
+        img_features = extractImgFeatures(img, color_space_in, 
+                                          hog_orient, hog_pix_per_cell, hog_cells_per_block,
+                                          spatial_size, hist_bins, 
+                                          vis=False, hog_channel='ALL')
+        
+        # Concatenate features and append to the imgs' list
+        features.append(img_features)
+    return features
