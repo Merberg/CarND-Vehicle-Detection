@@ -14,7 +14,7 @@ get_ipython().magic('matplotlib inline')
 IMAGE_HEIGHT = 720
 IMAGE_WIDTH = 1280
 FIGURE_SIZE = (24,12)
-FONT_SIZE = 14
+FONT_SIZE = 18
 
 def plotOne(img1, title1, cmap1=None):
     plt.imshow(img1, cmap=cmap1)
