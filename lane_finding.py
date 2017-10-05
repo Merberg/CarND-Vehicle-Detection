@@ -36,7 +36,10 @@ LANE_WINDOW_WIDTH = 140
 # ### Camera Calibration ###
 # Prior to executing the lane finding pipeline, the camera must be calibrated using 9x6 chessboard images.  This is only completed once.
 #
-def findChessboardPoints(fname):
+def findChessboardPoints(fname, nx, ny, worldPoints, imagePoints):
+    worldPt = np.zeros((nx*ny,3), np.float32)
+    worldPt[:,:2] = np.mgrid[0:nx,0:ny].T.reshape(-1,2)
+
     # Find the chessboard corners of file.
     iRGB = mpimg.imread(fname)
 
@@ -56,23 +59,22 @@ def calibrateCamera():
     nx = 9
     ny = 6
     worldPoints = []
-    worldPt = np.zeros((nx*ny,3), np.float32)
-    worldPt[:,:2] = np.mgrid[0:nx,0:ny].T.reshape(-1,2)
-
     imagePoints = []
+
+    iOrig = mpimg.imread('camera_cal/calibration1.jpg')
     images = glob.glob('camera_cal/calibration*.jpg')
     for chessboard in images:
-        findChessboardPoints(chessboard)
+        findChessboardPoints(chessboard, nx, ny, worldPoints, imagePoints)
 
     print("Calibration points found in {} of {} images".format(len(imagePoints), len(images)))
 
     ret, cameraMtx, distCoeffs, rotVecs, transVecs = cv2.calibrateCamera(
         worldPoints, imagePoints, iOrig.shape[0:2], None, None)
     iUndistort = cv2.undistort(iOrig, cameraMtx, distCoeffs, None, cameraMtx)
-    return
+    return cameraMtx, distCoeffs
 
 # ### Lane Finding Pipeline ###
-def undistortImage(img):
+def undistortImage(img, cameraMtx, distCoeffs):
     # Undistort the image by refining the camera matrix,
     # running the function, then cropping to the region of interest
     return cv2.undistort(img, cameraMtx, distCoeffs, None, cameraMtx)
@@ -83,8 +85,7 @@ def applyThreshold(binary, thresh):
     binary_th[(binary >= thresh[0]) & (binary <= thresh[1])] = 1
     return binary_th
 
-def combineThresholdsForPlots(img):
-    # Combine thresholds for testing with visualization
+def combineThresholds(img):
     # Convert to CIELAB color space and use the L channel for whites
     # and the b channel (blues to yellows) for yellows
     lab = cv2.cvtColor(img, cv2.COLOR_RGB2Lab).astype(np.float)
@@ -92,11 +93,6 @@ def combineThresholdsForPlots(img):
     yellowB = applyThreshold(lab[:,:,2], (150,255))
     combined = np.zeros_like(whiteB)
     combined[((whiteB == 1)|(yellowB == 1))] = 1
-    return whiteB, yellowB, combined
-
-def combineThresholds(img):
-    # Combine thresholds for pipeline use
-    combine1, combine2, combined = combineThresholdsForPlots(img)
     return combined
 
 def warpToBirdsEye(img):
@@ -143,7 +139,7 @@ def findLaneInWindow(x, xDelta, y, nonzero):
 
     return xNext, xDelta, laneIdx, (windowLeft, windowBottom)
 
-def findInitialLaneInImage(img, xStart, visualizeOn=False):
+def findInitialLaneInImage(img, xStart):
     # Find the individual lane within the image by
     # looking through windows
     nonzero = img.nonzero()
@@ -158,15 +154,6 @@ def findInitialLaneInImage(img, xStart, visualizeOn=False):
         y = IMAGE_HEIGHT-(w)*LANE_WINDOW_HEIGHT
         x, xDelta, idx, windowCorner = findLaneInWindow(x, xDelta, y, nonzero)
         laneIndices.append(idx)
-
-        # Plot rectangles if enabled
-        if visualizeOn:
-            windowFrame = patches.Rectangle(windowCorner,
-                                            LANE_WINDOW_WIDTH,
-                                            LANE_WINDOW_HEIGHT,
-                                            fill=False,
-                                            edgecolor='green')
-            plt.gca().add_patch(windowFrame)
 
     # Flatten the indices to fit the polynomial
     laneIndices = np.concatenate(laneIndices)
@@ -202,7 +189,7 @@ def calculateCurve(coeff, yEval):
     # Convert the valid index values to real world to fit
     # a polynomial to use to calculate the radius
     radius_m = 0
-    if len(leftCoeff) ==3 and len(rightCoeff) == 3:
+    if len(coeff) ==3:
         ys = np.linspace(0, IMAGE_HEIGHT-1, IMAGE_HEIGHT)
         xs = coeff[0]*ys**2 + coeff[1]*ys + coeff[2]
 
@@ -329,7 +316,9 @@ def createLaneDrawing(birdsEyeImg, undistortedImg, leftLane, rightLane):
     birdsEyeZero = np.zeros_like(birdsEyeImg).astype(np.uint8)
     birdsEyeColor = np.dstack((birdsEyeZero, birdsEyeZero, birdsEyeZero))
 
-    xL, xR, y = plotCreateSecondOrderXY(leftLane.coeff, rightLane.coeff)
+    y = np.linspace(0, IMAGE_HEIGHT-1, IMAGE_HEIGHT)
+    xL = leftLane.coeff[0]*y**2 + leftLane.coeff[1]*y + leftLane.coeff[2]
+    xR = rightLane.coeff[0]*y**2 + rightLane.coeff[1]*y + rightLane.coeff[2]
     pointsL = np.array([np.transpose(np.vstack([xL, y]))])
     pointsR = np.array([np.flipud(np.transpose(np.vstack([xR, y])))])
     pts = np.hstack((pointsL, pointsR))
@@ -340,15 +329,6 @@ def createLaneDrawing(birdsEyeImg, undistortedImg, leftLane, rightLane):
 
     # Combine the drawing with the undistorted image
     resultImg = cv2.addWeighted(undistortedImg, 1, laneImg, 0.3, 0)
-
-    # Write the radius and offset
-    textRadius = "Radius ~ {:.2f} km".format((leftLane.radius_m+rightLane.radius_m)/2000)
-    resultImg = cv2.putText(resultImg, textRadius, (10,100), cv2.FONT_HERSHEY_PLAIN, 4, (255,255,255), 4)
-
-    carOffset = estimateCenterOffset(leftLane.coeff, rightLane.coeff)
-    textOffsets = "Car Offset ~ {:.2f} m from Center".format(carOffset)
-    resultImg = cv2.putText(resultImg, textOffsets, (10,200), cv2.FONT_HERSHEY_PLAIN, 4, (255,255,255), 4)
-
     return resultImg
 
 # ## Lane Finding Pipeline ##
@@ -359,9 +339,9 @@ def createLaneDrawing(birdsEyeImg, undistortedImg, leftLane, rightLane):
 # 4. Lane line identification
 # 5. Curvature and location estimation
 # 6. Image markup
-def findLanes(img, leftLane, rightLane):
+def findLanes(img, leftLane, rightLane, cameraMtx, distCoeffs):
 
-    undistorted = undistortImage(img)
+    undistorted = undistortImage(img, cameraMtx, distCoeffs)
     binary = combineThresholds(undistorted)
     warped = warpToBirdsEye(binary)
 

@@ -9,10 +9,9 @@ The goals / steps of this project are the following:
 * Estimate a bounding box for vehicles detected.
 
 [//]: # (Image References)
-[image1]: ./examples/car_not_car.png
-[image2]: ./examples/HOG_example.jpg
-[image3]: ./examples/sliding_windows.jpg
-[image4]: ./examples/sliding_window.jpg
+[image1]: ./output_images/1_features.png
+[image3]: ./output_images/2_windows_and_scale.png
+[image4]: ./output_images/sliding_window.jpg
 [image5]: ./examples/bboxes_and_heat.png
 [image6]: ./examples/labels_map.png
 [image7]: ./examples/output_bboxes.png
@@ -26,27 +25,23 @@ The goals / steps of this project are the following:
 - **plot_images.py**: Functions for plotting and visualizing data.
 - **vehicle_features.py**: Functions that perform the feature extractions on images.
 -  **vehicle_classifier.ipynb**: Main project notebook that contains the vehicle detection pipeline.
+-  **output_images folder/project_results.mp4**: marked-up video with the results
 
 ###Histogram of Oriented Gradients (HOG)
 
-####1. Explain how (and identify where in your code) you extracted HOG features from the training images.
+####1. Features Extraction
 
-The code for this step is contained in the first code cell of the IPython notebook (or in lines # through # of the file called `some_file.py`).  
+The following features are used, in the listed order, for training and prediction:
+1. HOG
+2. Color binning/down sampling
+3. Color channel histograms
 
-I started by reading in all the `vehicle` and `non-vehicle` images.  Here is an example of one of each of the `vehicle` and `non-vehicle` classes:
+The code that executes features extraction is housed in vehicle_features.py.  The images, training or video frames, are first converted to the YCrCb color space.  The first channel of this color space is the light intensity, while channels two and three separate the primary colors.  This division allows for sharper processing of black-and-white while also providing procesing on the chroma channels.  This color space plays into the accuracy of the the color channel histograms; the accuracy, determined via testing, was maximized using YCrCb.
+HOG parameter values were set experimentally:
+
 
 ![alt text][image1]
 
-I then explored different color spaces and different `skimage.hog()` parameters (`orientations`, `pixels_per_cell`, and `cells_per_block`).  I grabbed random images from each of the two classes and displayed them to get a feel for what the `skimage.hog()` output looks like.
-
-Here is an example using the `YCrCb` color space and HOG parameters of `orientations=8`, `pixels_per_cell=(8, 8)` and `cells_per_block=(2, 2)`:
-
-
-![alt text][image2]
-
-####2. Explain how you settled on your final choice of HOG parameters.
-
-I tried various combinations of parameters and...
 
 ####3. Describe how (and identify where in your code) you trained a classifier using your selected HOG features (and color features if you used them).
 
