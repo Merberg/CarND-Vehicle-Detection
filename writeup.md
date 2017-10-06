@@ -41,28 +41,29 @@ The code that executes features extraction is housed in vehicle_features.py.  Th
 
 ###### Color Space Accuracy and Timing
 
-| Color Space | 1 | 2 | 3 | All | Train Time All (sec)
-|-------|------|------|------|------|
-| **YCrCb** | 0.95 | 0.97 | 0.96 | **0.99** | **6.16**
-| HSV   | 0.96 | 0.90 | 0.95 | 0.98 | 6.45
-| LUV   | 0.95 | 0.96 | 0.95 | 0.98 | 6.79
-| HLS   | 0.96 | 0.95 | 0.92 | 0.96 | 6.31
-| YUV   | 0.96 | 0.97 | 0.95 | 0.98 | 6.22
+| Color Space | 1 | 2 | 3 | All |Train Time All (sec)|
+|-------------|---|---|---|-----|--------------------|
+| **YCrCb** | 0.95 | 0.97 | 0.96 | **0.99** | **6.16**|
+| HSV   | 0.96 | 0.90 | 0.95 | 0.98 | 6.45|
+| LUV   | 0.95 | 0.96 | 0.95 | 0.98 | 6.79|
+| HLS   | 0.96 | 0.95 | 0.92 | 0.96 | 6.31|
+| YUV   | 0.96 | 0.97 | 0.95 | 0.98 | 6.22|
 
 Additional tuning was performed for the binning and histogram parameters:
 
 ###### Spatial Binning and Histogram Parameter Accuracy
 
-|| Spatial Bin Size | # Histogram Bins | Train Time | Accuracy
-|--|--|--|--|
-|1| (32,32) | 32 | 2.09 | 0.9666
-|2| (32,32) | 16 | 2.51 | 0.9520
-|3|**(24,24)** | **40** | **0.84** | **0.9833**
-|4| (16,16) | 40 | 0.35 | 0.9854
-|5| (16,16) | 32 | 0.30 | 0.9896
-|6| (8,8)   | 40 | 0.10 | 0.9854
-|7| (8,8)   | 32 | 0.09 | 0.9875
-|8| (8,8)   | 16 | 0.12 | 0.9624
+|| Spatial Bin Size | # Histogram Bins | Train Time | Accuracy|
+|-|---------|----|------|-------|
+|1| (32,32) | 32 | 2.09 | 0.9666|
+|2| (32,32) | 16 | 2.51 | 0.9520|
+|3|**(24,24)** | **40** | **0.84** | **0.9833**|
+|4| (16,16) | 40 | 0.35 | 0.9854|
+|5| (16,16) | 32 | 0.30 | 0.9896|
+|6| (8,8)   | 40 | 0.10 | 0.9854|
+|7| (8,8)   | 32 | 0.09 | 0.9875|
+|8| (8,8)   | 16 | 0.12 | 0.9624|
+
 Rows 6-8 highlight promising values, however in operation these features produced numerous false positives.
 
 ![False Positive][image1]
