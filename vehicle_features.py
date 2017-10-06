@@ -12,7 +12,7 @@ def convertColorSpace(img, color_space_in):
     if color_space_in == 'BGR':
         return cv2.cvtColor(img, cv2.COLOR_BGR2YCrCb)
     
-def extractHog(img, orient=9, pix_per_cell=8, n_cell_per_block=2, 
+def extractHog(img, orient, pix_per_cell, n_cell_per_block, 
                vis=False, feature_vec=True):
     # Call with two outputs if an image of the HOG is requested
     if vis == True:
@@ -31,14 +31,14 @@ def extractHog(img, orient=9, pix_per_cell=8, n_cell_per_block=2,
                        visualise=vis, feature_vector=feature_vec)
         return features
 
-def binColorsSpatially(img, size=(8, 8)):
+def binColorsSpatially(img, size):
     # Down sample the image and stack
     color1 = cv2.resize(img[:,:,0], size).ravel()
     color2 = cv2.resize(img[:,:,1], size).ravel()
     color3 = cv2.resize(img[:,:,2], size).ravel()
     return np.hstack((color1, color2, color3))
                         
-def computeColorHistogram(img, n_bins=40):
+def computeColorHistogram(img, n_bins):
     # Compute the histogram of the color channels separately
     channel1_hist = np.histogram(img[:,:,0], bins=n_bins)
     channel2_hist = np.histogram(img[:,:,1], bins=n_bins)
