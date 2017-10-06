@@ -9,13 +9,13 @@ The goals / steps of this project are the following:
 * Estimate a bounding box for vehicles detected.
 
 [//]: # (Image References)
-[image1]: ./output_images/1_features.png
-[image3]: ./output_images/2_windows_and_scale.png
-[image4]: ./output_images/sliding_window.jpg
-[image5]: ./examples/bboxes_and_heat.png
-[image6]: ./examples/labels_map.png
-[image7]: ./examples/output_bboxes.png
-[video1]: ./project_video.mp4
+[image1]: ./output_images/1_false_positives.png
+[image2]: ./output_images/1_features.png
+[image3]: ./output_images/2_window_frames.png
+[image4]: ./output_images/2_windows_and_scale.png
+[image5]: ./output_images/2_thresholded.png
+[image6]: ./output_images/4_history.png
+[video1]: ./output_images/project_results.mp4
 
 ## [Rubric](https://review.udacity.com/#!/rubrics/513/view) Points
 ---
@@ -33,56 +33,106 @@ The goals / steps of this project are the following:
 
 The following features are used, in the listed order, for training and prediction:
 1. HOG
-2. Color binning/down sampling
+2. Color spatial binning/down sampling
 3. Color channel histograms
 
-The code that executes features extraction is housed in vehicle_features.py.  The images, training or video frames, are first converted to the YCrCb color space.  The first channel of this color space is the light intensity, while channels two and three separate the primary colors.  This division allows for sharper processing of black-and-white while also providing procesing on the chroma channels.  This color space plays into the accuracy of the the color channel histograms; the accuracy, determined via testing, was maximized using YCrCb.
-HOG parameter values were set experimentally:
+The code that executes features extraction is housed in vehicle_features.py.  The images, training or video frames, are first converted to the YCrCb color space.  The first channel of this color space is the light intensity, while channels two and three separate the primary colors.  This division allows for sharper processing of black-and-white while also providing procesing on the chroma channels.  This color space plays into the accuracy of the the color channel histograms; the accuracy, determined via testing, was maximized using YCrCb with an acceptable duration.
 
+###### Color Space Accuracy and Timing
+| Color Space | 1 | 2 | 3 | All | Train Time All (sec)
+|-------|------|------|------|------|
+| **YCrCb** | 0.95 | 0.97 | 0.96 | **0.99** | **6.16**
+| HSV   | 0.96 | 0.90 | 0.95 | 0.98 | 6.45
+| LUV   | 0.95 | 0.96 | 0.95 | 0.98 | 6.79
+| HLS   | 0.96 | 0.95 | 0.92 | 0.96 | 6.31
+| YUV   | 0.96 | 0.97 | 0.95 | 0.98 | 6.22
 
-![alt text][image1]
+Further tuning was perform for the binning and histogram:
 
+###### Spatial Binning and Histogram Parameter Accuracy
+|| Spatial Bin Size | # Histogram Bins | Train Time | Accuracy
+|--|--|--|--|
+|1| (32,32) | 32 | 2.09 | 0.9666
+|2| (32,32) | 16 | 2.51 | 0.9520
+|3|**(24,24)** | **40** | **0.84** | **0.9833**
+|4| (16,16) | 40 | 0.35 | 0.9854
+|5| (16,16) | 32 | 0.30 | 0.9896
+|6| (8,8)   | 40 | 0.10 | 0.9854
+|7| (8,8)   | 32 | 0.09 | 0.9875
+|8| (8,8)   | 16 | 0.12 | 0.9624
+Rows 6-8 highlight promising values, however in operation these features produced numerous false positives.
+![False Positive][image1]
 
-####3. Describe how (and identify where in your code) you trained a classifier using your selected HOG features (and color features if you used them).
+From the theory behind Histogram of Oriented Gradients, the orientation is normally optimal between 9-12, the number of cells per blocks is kept at a minumum (usually 2), and the pixels per cell range between 4-8.  To minimize time and maximize accuracy, these parameters where selected to produce the displayed results:
+> HOG_ORIENT = 9
+HOG_PIX_PER_CELL = 8
+HOG_CELLS_PER_BLOCK = 2
 
-I trained a linear SVM using...
+![HOG Features][image2]
+
+In vehicle_classifier.ipynb, the `Training the SVC` cell houses the code which yields the following:
+```
+Training classifier:
+	* 7140 feature vectors
+	* Duration 15.0747 seconds
+	* Accuracy of 0.9842
+```
+
 
 ###Sliding Window Search
 
-####1. Describe how (and identify where in your code) you implemented a sliding window search.  How did you decide what scales to search and how much to overlap windows?
+In the `Sliding Windows` cell, the `findCars` functions stays fairly true to the technique taught in the lesson with one exception; the window was extended to cover the entire range provided.  This helped pick up cars to the right of the ego vehicle once they entered the view.
+Three windows are applied to each image at different scales:
+```
+WINDOW_SCALES = [1.0, 1.5, 2.0]
+Y_STARTS = [375, 375, 375]
+Y_STOPS = [500, 550, 600]
+```
+The coverage of the frames is visualized below:
 
-I decided to search random window positions at random scales all over the image and came up with this (ok just kidding I didn't actually ;):
+![Window Frames][image3]
 
-![alt text][image3]
+The different scales enable the detector to pick up different features.  For example, look at the variation in the coverage of the white car in the images below.
+![Window Scales][image4]
 
-####2. Show some examples of test images to demonstrate how your pipeline is working.  What did you do to optimize the performance of your classifier?
+Because the multiple windows add numerous false positives, a `HEAT_THRESHOLD = len(WINDOW_SCALES)+1` needs to be applied.  The bottom images highlight the reduction of false positives with the threshold application.
+![Threshold][image5]
 
-Ultimately I searched on two scales using YCrCb 3-channel HOG features plus spatially binned color and histograms of color in the feature vector, which provided a nice result.  Here are some example images:
-
-![alt text][image4]
 ---
 
-### Video Implementation
+### Vehicle Detection Pipeline (Video)
+_Note: Lane Detection from the previous project was incorporated on the pipeline to hightlight the path of travel._
 
-####1. Provide a link to your final video output.  Your pipeline should perform reasonably well on the entire project video (somewhat wobbly or unstable bounding boxes are ok as long as you are identifying the vehicles most of the time with minimal false positives.)
-Here's a [link to my video result](./project_video.mp4)
+#### Detection History
+The TrackHeatmap class in the `Vehicle Detection History` cell performs exponential smoothing on consecutive images, with a slight bias towards the historic heatmap. EMA is performed before the heatmap threshold is applied.  These images show this moving average scheme:
+![EMA Images][image6]
 
+The `addVehiclesHeat` method of TrackHeatmap is used to strengthen the presence of the bounded boxes drawn on the image for the next round of detection.
 
-####2. Describe how (and identify where in your code) you implemented some kind of filter for false positives and some method for combining overlapping bounding boxes.
+This sequence forms the final pipeline:
 
-I recorded the positions of positive detections in each frame of the video.  From the positive detections I created a heatmap and then thresholded that map to identify vehicle positions.  I then used `scipy.ndimage.measurements.label()` to identify individual blobs in the heatmap.  I then assumed each blob corresponded to a vehicle.  I constructed bounding boxes to cover the area of each blob detected.  
+```
+heatmapper = TrackHeatmap(HEAT_THRESHOLD)
+leftLane = LaneLine(True)
+rightLane = LaneLine(False)
 
-Here's an example result showing the heatmap from a series of frames of video, the result of `scipy.ndimage.measurements.label()` and the bounding boxes then overlaid on the last frame of video:
+def processImage(img, vis=False):
+    heatmap = np.zeros_like(img[:,:,0])
+    for i, s in enumerate(WINDOW_SCALES):
+        heatmap += findCars(img, s, Y_STARTS[i], Y_STOPS[i])
+    h_smoothed = heatmapper.update(heatmap, vis)
+    labels = label(h_smoothed)
+    i_bbox, bboxes = determineBoundingBoxes(np.copy(img), labels)
+    i_everything = findLanes(i_bbox, leftLane, rightLane, 
+                             cameraMtx, distCoeffs)
+    heatmapper.addVehiclesHeat(bboxes)
+    return i_everything
+```
 
-### Here are six frames and their corresponding heatmaps:
+The pipeline in action: [Results Video](https://github.com/Merberg/CarND-Vehicle-Detection/blob/master/output_images/project_results.mp4)
 
-![alt text][image5]
+![Results on project_video][video1]
 
-### Here is the output of `scipy.ndimage.measurements.label()` on the integrated heatmap from all six frames:
-![alt text][image6]
-
-### Here the resulting bounding boxes are drawn onto the last frame in the series:
-![alt text][image7]
 
 
 
@@ -90,7 +140,6 @@ Here's an example result showing the heatmap from a series of frames of video, t
 
 ###Discussion
 
-####1. Briefly discuss any problems / issues you faced in your implementation of this project.  Where will your pipeline likely fail?  What could you do to make it more robust?
-
-Here I'll talk about the approach I took, what techniques I used, what worked and why, where the pipeline might fail and how I might improve it if I were going to pursue this project further.  
+I wanted to learn and experiment with Support Vector Machines and traditional machine learning, thus the use of a linear SVM, however I think deep learning would be a better application.  If the target hardware includes a GPU, this helps solidfy this option.  The classification layer could be trained to identify more types of vehicles, even cyclists that behave differently than cars on roadways.
+This pipeline is by no means realtime, a huge drawback.  Numerous improvements could be made to help with timing.  Depending on the application of the tracking algorithm and deadlines, skipping some frames could be an option.  Combining logic from lane detection and road placement could be used to narrow the region of interest to look for vehicles.
 
